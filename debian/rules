@@ -38,7 +38,12 @@ override_dh_installdocs:
 	dh_installdocs -O--buildsystem=python_distutils
 
 override_dh_installinit:
-	dh_installinit -O--buildsystem=python_distutils --name rtslib-fb-targetctl
+	dh_installinit \
+		--no-start \
+		--no-enable \
+		--no-stop-on-upgrade \
+		--no-restart-after-upgrade \
+		-O--buildsystem=python_distutils --name rtslib-fb-targetctl
 
 override_dh_auto_clean:
 	dh_auto_clean -O--buildsystem=python_distutils
