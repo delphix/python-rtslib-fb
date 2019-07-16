@@ -29,19 +29,30 @@ import os
 import sys
 
 default_save_file = "/etc/rtslib-fb-target/saveconfig.json"
+svc_suspended_runfile = "/run/rtslib-fb-target/suspended"
 err = sys.stderr
 
 def usage():
     print("syntax: %s save [file_to_save_to]" % sys.argv[0], file=err)
     print("        %s restore [file_to_restore_from]" % sys.argv[0], file=err)
     print("        %s clear" % sys.argv[0], file=err)
+    print("        %s suspend" % sys.argv[0], file=err)
+    print("        %s resume [file_to_restore_from]" % sys.argv[0], file=err)
+    print("        %s factory_reset" % sys.argv[0], file=err)
     print("  default file is: %s" % default_save_file, file=err)
     sys.exit(-1)
 
 def save(to_file):
+    if os.path.exists(svc_suspended_runfile):
+        print("Service suspended, saving config disabled.")
+        sys.exit(0)
+
     RTSRoot().save_to_file(save_file=to_file)
 
-def restore(from_file):
+def restore(from_file, check_suspended=True):
+    if check_suspended and os.path.exists(svc_suspended_runfile):
+        print("Warning: service suspended, not restoring config.")
+        sys.exit(0)
 
     try:
         errors = RTSRoot().restore_from_file(restore_file=from_file)
@@ -56,7 +67,41 @@ def restore(from_file):
 def clear(unused):
     RTSRoot().clear_existing(confirm=True)
 
-funcs = dict(save=save, restore=restore, clear=clear)
+def suspend(unused):
+    if not os.path.isdir(os.path.dirname(svc_suspended_runfile)):
+        os.mkdir(os.path.dirname(svc_suspended_runfile))
+
+    if os.path.exists(svc_suspended_runfile):
+        print('Service already suspended.')
+    else:
+        # Create run-file that indicates that the service is suspended.
+        # Note that we do this before clearing the state. If the operation
+        # fails mid-way then we will be prevented from making modifications
+        # to a partially destroyed state.
+        with open(svc_suspended_runfile, 'a'):
+            pass
+
+        clear(None)
+        print('Service suspended.')
+
+def resume(config_file):
+    if os.path.exists(svc_suspended_runfile):
+        restore(config_file, check_suspended=False)
+        os.remove(svc_suspended_runfile)
+        print('Service resumed.')
+    else:
+        print('Service was not suspended.')
+
+def factory_reset(config_file):
+    clear(None)
+    if os.path.exists(svc_suspended_runfile):
+        os.remove(svc_suspended_runfile)
+    save(config_file)
+    print('Factory-reset performed successfully.')
+
+
+funcs = dict(save=save, restore=restore, clear=clear, suspend=suspend,
+             resume=resume, factory_reset=factory_reset)
 
 def main():
     if os.geteuid() != 0:
