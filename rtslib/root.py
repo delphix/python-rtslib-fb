@@ -182,7 +182,7 @@ class RTSRoot(CFSNode):
         return
 
         if self._dbroot != self._preferred_dbroot:
-            if len(FabricModule.list_registered_drivers()) is not 0:
+            if len(FabricModule.list_registered_drivers()) != 0:
                 # Writing to dbroot_path after drivers have been registered will make the kernel emit this error:
                 # db_root: cannot be changed: target drivers registered
                 from warnings import warn
