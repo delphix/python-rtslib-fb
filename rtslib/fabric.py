@@ -118,8 +118,8 @@ from .utils import RTSLibError, modprobe, ignored
 from .target import Target
 from .utils import _get_auth_attr, _set_auth_attr
 
-version_attributes = {"lio_version", "version"}
-discovery_auth_attributes = {"discovery_auth"}
+version_attributes = set(["lio_version", "version"])
+discovery_auth_attributes = set(["discovery_auth"])
 target_names_excludes = version_attributes | discovery_auth_attributes
 
 
@@ -137,12 +137,11 @@ class _BaseFabricModule(CFSNode):
     def __init__(self, name):
         '''
         Instantiate a FabricModule object, according to the provided name.
-        @param name: the name of the FabricModule object. It must match an
-        existing target fabric module specfile (name.spec).
+        @param name: the name of the FabricModule object.
         @type name: str
         '''
         super(_BaseFabricModule, self).__init__()
-        self.name = str(name)
+        self.name = name
         self.spec_file = "N/A"
         self._path = "%s/%s" % (self.configfs_dir, self.name)
         self.features = ('discovery_auth', 'acls', 'auth', 'nps', 'tpgts')
@@ -153,8 +152,11 @@ class _BaseFabricModule(CFSNode):
 
     def _check_self(self):
         if not self.exists:
-            modprobe(self.kernel_module)
-            self._create_in_cfs_ine('any')
+            try:
+                self._create_in_cfs_ine('any')
+            except RTSLibError:
+                modprobe(self.kernel_module)
+                self._create_in_cfs_ine('any')
         super(_BaseFabricModule, self)._check_self()
 
     def has_feature(self, feature):
@@ -436,6 +438,27 @@ class VhostFabricModule(_BaseFabricModule):
         self.wwn_types = ('naa',)
         self.kernel_module = "tcm_vhost"
 
+class XenPvScsiFabricModule(_BaseFabricModule):
+    def __init__(self):
+        super(XenPvScsiFabricModule, self).__init__('xen-pvscsi')
+        self._path = "%s/%s" % (self.configfs_dir, 'xen-pvscsi')
+        self.features = ("nexus", "tpgts")
+        self.wwn_types = ('naa',)
+        self.kernel_module = "xen-scsiback"
+
+
+class IbmvscsisFabricModule(_BaseFabricModule):
+    def __init__(self):
+        super(IbmvscsisFabricModule, self).__init__('ibmvscsis')
+        self.features = ()
+        self.kernel_module = "ibmvscsis"
+
+    @property
+    def wwns(self):
+        for wwn_file in glob("/sys/module/ibmvscsis/drivers/vio:ibmvscsis/*/devspec"):
+            name = fread(wwn_file)
+            yield name[name.find("@") + 1:]
+
 
 fabric_modules = {
     "srpt": SRPTFabricModule,
@@ -446,6 +469,8 @@ fabric_modules = {
     "tcm_fc": FCoEFabricModule,
 #    "usb_gadget": USBGadgetFabricModule, # very rare, don't show
     "vhost": VhostFabricModule,
+    "xen-pvscsi": XenPvScsiFabricModule,
+    "ibmvscsis": IbmvscsisFabricModule,
     }
 
 #

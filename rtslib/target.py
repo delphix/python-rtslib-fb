@@ -464,7 +464,7 @@ class LUN(CFSNode):
     A LUN is identified by its parent TPG and LUN index.
     '''
 
-    MAX_LUN = 255
+    MAX_TARGET_LUN = 65535
 
     # LUN private stuff
 
@@ -487,7 +487,7 @@ class LUN(CFSNode):
         @param parent_tpg: The parent TPG object.
         @type parent_tpg: TPG
         @param lun: The LUN index.
-        @type lun: 0-255
+        @type lun: 0-65535
         @param storage_object: The storage object to be exported as a LUN.
         @type storage_object: StorageObject subclass
         @param alias: An optional parameter to manually specify the LUN alias.
@@ -504,16 +504,16 @@ class LUN(CFSNode):
 
         if lun is None:
             luns = [l.lun for l in self.parent_tpg.luns]
-            for index in range(self.MAX_LUN+1):
+            for index in range(self.MAX_TARGET_LUN+1):
                 if index not in luns:
                     lun = index
                     break
             if lun is None:
-                raise RTSLibError("All LUNs 0-%d in use" % self.MAX_LUN)
+                raise RTSLibError("All LUNs 0-%d in use" % self.MAX_TARGET_LUN)
         else:
             lun = int(lun)
-            if lun < 0 or lun > self.MAX_LUN:
-                raise RTSLibError("LUN must be 0 to %d" % self.MAX_LUN)
+            if lun < 0 or lun > self.MAX_TARGET_LUN:
+                raise RTSLibError("LUN must be 0 to %d" % self.MAX_TARGET_LUN)
 
         self._lun = lun
 
@@ -582,6 +582,44 @@ class LUN(CFSNode):
                 if os.path.realpath("%s/%s" % (mlun.path, mlun.alias)) == self.path:
                     yield mlun
 
+
+    # pass through backends will not have setup all the default
+    # ALUA structs in the kernel. If the kernel has been setup,
+    # a user created group or default_tg_pt_gp will be returned.
+    # If the kernel was not properly setup an empty string is
+    # return in alua_tg_pt_gp. Writing to alua_tg_pt_gp will crash
+    # older kernels and will return a -Exyz code in newer ones.
+    def _get_alua_tg_pt_gp_name(self):
+        self._check_self()
+
+        storage_object = self._get_storage_object()
+        if storage_object.alua_supported is False:
+            return None
+
+        path = "%s/alua_tg_pt_gp" % self.path
+        try:
+            info = fread(path)
+            if not info:
+                return None
+            group_line = info.splitlines()[0]
+            return group_line.split(':')[1].strip()
+        except IOError as e:
+            return None
+
+    def _set_alua_tg_pt_gp_name(self, group_name):
+        self._check_self()
+
+        if not self._get_alua_tg_pt_gp_name():
+            return -1
+
+        path = "%s/alua_tg_pt_gp" % self.path
+        try:
+            fwrite(path, group_name)
+        except IOError as e:
+            return -1
+
+        return 0
+
     # LUN public stuff
 
     def delete(self):
@@ -615,6 +653,8 @@ class LUN(CFSNode):
             doc="Get the LUN alias.")
     mapped_luns = property(_list_mapped_luns,
             doc="List all MappedLUN objects referencing this LUN.")
+    alua_tg_pt_gp_name = property(_get_alua_tg_pt_gp_name, _set_alua_tg_pt_gp_name,
+            doc="Get and Set the LUN's ALUA Target Port Group")
 
     @classmethod
     def setup(cls, tpg_obj, lun, err_func):
@@ -637,16 +677,24 @@ class LUN(CFSNode):
             return
 
         try:
-            cls(tpg_obj, lun['index'], storage_object=match_so)
+           lun_obj =  cls(tpg_obj, lun['index'], storage_object=match_so, alias=lun.get('alias'))
         except (RTSLibError, KeyError):
             err_func("Creating TPG %d LUN index %d failed" %
                      (tpg_obj.tag, lun['index']))
+
+        try:
+            lun_obj.alua_tg_pt_gp_name = lun['alua_tg_pt_gp_name']
+        except KeyError:
+            # alua_tg_pt_gp support not present in older versions
+            pass
 
     def dump(self):
         d = super(LUN, self).dump()
         d['storage_object'] = "/backstores/%s/%s" % \
             (self.storage_object.plugin,  self.storage_object.name)
         d['index'] = self.lun
+        d['alias'] = self.alias
+        d['alua_tg_pt_gp_name'] = self.alua_tg_pt_gp_name
         return d
 
 
@@ -727,10 +775,27 @@ class NetworkPortal(CFSNode):
             if os.path.isfile(path):
                 raise RTSLibError("Cannot change iser")
 
+    def _get_offload(self):
+        try:
+            # only offload at the moment is cxgbit
+            return bool(int(fread("%s/cxgbit" % self.path)))
+        except IOError:
+            return False
+
+    def _set_offload(self, boolean):
+        path = "%s/cxgbit" % self.path
+        try:
+            fwrite(path, str(int(boolean)))
+        except IOError:
+            # b/w compat: don't complain if cxgbit entry is missing
+            if os.path.isfile(path):
+                raise RTSLibError("Cannot change offload")
+
     # NetworkPortal public stuff
 
     def delete(self):
         self.iser = False
+        self.offload = False
         super(NetworkPortal, self).delete()
 
     parent_tpg = property(_get_parent_tpg,
@@ -742,6 +807,9 @@ class NetworkPortal(CFSNode):
     iser = property(_get_iser, _set_iser,
                     doc="Get or set a boolean value representing if this " \
                         + "NetworkPortal supports iSER.")
+    offload = property(_get_offload, _set_offload,
+                    doc="Get or set a boolean value representing if this " \
+                        + "NetworkPortal supports offload.")
 
     @classmethod
     def setup(cls, tpg_obj, p, err_func):
@@ -755,6 +823,7 @@ class NetworkPortal(CFSNode):
         try:
             np = cls(tpg_obj, p['ip_address'], p['port'])
             np.iser = p.get('iser', False)
+            np.offload = p.get('offload', False)
         except (RTSLibError, KeyError) as e:
             err_func("Creating NetworkPortal object %s:%s failed: %s" %
                      (p['ip_address'], p['port'], e))
@@ -764,6 +833,7 @@ class NetworkPortal(CFSNode):
         d['port'] = self.port
         d['ip_address'] = self.ip_address
         d['iser'] = self.iser
+        d['offload'] = self.offload
         return d
 
 
@@ -990,6 +1060,8 @@ class MappedLUN(CFSNode):
     the initiator node as the MappedLUN.
     '''
 
+    MAX_LUN = 255
+
     # MappedLUN private stuff
 
     def __repr__(self):
@@ -998,7 +1070,7 @@ class MappedLUN(CFSNode):
              self.parent_nodeacl.parent_tpg.tag, self.tpg_lun.lun)
 
     def __init__(self, parent_nodeacl, mapped_lun,
-                 tpg_lun=None, write_protect=None):
+                 tpg_lun=None, write_protect=None, alias=None):
         '''
         A MappedLUN object can be instanciated in two ways:
             - B{Creation mode}: If I{tpg_lun} is specified, the underlying
@@ -1037,6 +1109,9 @@ class MappedLUN(CFSNode):
             raise RTSLibError("The mapped_lun parameter must be an " \
                               + "integer value")
 
+        if self._mapped_lun < 0 or self._mapped_lun > self.MAX_LUN:
+            raise RTSLibError("Mapped LUN must be 0 to %d" % self.MAX_LUN)
+
         self._path = "%s/lun_%d" % (self.parent_nodeacl.path, self.mapped_lun)
 
         if tpg_lun is None and write_protect is not None:
@@ -1046,14 +1121,14 @@ class MappedLUN(CFSNode):
         if tpg_lun is not None:
             self._create_in_cfs_ine('create')
             try:
-                self._configure(tpg_lun, write_protect)
+                self._configure(tpg_lun, write_protect, alias)
             except:
                 self.delete()
                 raise
         else:
             self._create_in_cfs_ine('lookup')
 
-    def _configure(self, tpg_lun, write_protect):
+    def _configure(self, tpg_lun, write_protect, alias):
         self._check_self()
         if isinstance(tpg_lun, LUN):
             tpg_lun = tpg_lun.lun
@@ -1071,8 +1146,10 @@ class MappedLUN(CFSNode):
         if not (isinstance(tpg_lun, LUN) and tpg_lun):
             raise RTSLibError("LUN %s does not exist in this TPG"
                               % str(tpg_lun))
-        os.symlink(tpg_lun.path, "%s/%s"
-                   % (self.path, str(uuid.uuid4())[-10:]))
+
+        if not alias:
+            alias = str(uuid.uuid4())[-10:]
+        os.symlink(tpg_lun.path, "%s/%s" % (self.path, alias))
 
         try:
             self.write_protect = int(write_protect) > 0
@@ -1170,7 +1247,8 @@ class MappedLUN(CFSNode):
 
         try:
             mlun_obj = cls(acl_obj, mlun['index'],
-                           tpg_lun_obj, mlun.get('write_protect'))
+                           tpg_lun_obj, mlun.get('write_protect'),
+                           mlun.get('alias'))
             mlun_obj.tag = mlun.get("tag", None)
         except (RTSLibError, KeyError):
             err_func("Creating MappedLUN object %d failed" % mlun['index'])
@@ -1180,6 +1258,7 @@ class MappedLUN(CFSNode):
         d['write_protect'] = self.write_protect
         d['index'] = self.mapped_lun
         d['tpg_lun'] = self.tpg_lun.lun
+        d['alias'] = self.alias
         return d
 
 
@@ -1223,11 +1302,11 @@ class Group(object):
         for mem in self._mem_func(self):
             setattr(mem, prop, value)
 
-    def list_attributes(self, writable=None):
-        return self._get_first_member().list_attributes(writable)
+    def list_attributes(self, writable=None, readable=None):
+        return self._get_first_member().list_attributes(writable, readable)
 
-    def list_parameters(self, writable=None):
-        return self._get_first_member().list_parameters(writable)
+    def list_parameters(self, writable=None, readable=None):
+        return self._get_first_member().list_parameters(writable, readable)
 
     def set_attribute(self, attribute, value):
         for obj in self._mem_func(self):

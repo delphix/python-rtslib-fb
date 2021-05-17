@@ -18,7 +18,6 @@ NAME=targetctl
 DAEMON=/usr/bin/${NAME}
 PIDFILE=/var/run/$NAME.pid
 SCRIPTNAME=/etc/init.d/rtslib-fb-targetctl
-SYSTEM_USER=trove
 
 [ -x $DAEMON ] || exit 0
 
@@ -35,7 +34,7 @@ check_configfs_module () {
 check_configfs_mounted () {
 	WORD_TO_GREP_IN_PROCMOUNT=configfs
 	#echo -n "Waiting for configfs to be loaded"
-	NUM_RETRY=50
+	NUM_RETRY=500
 	while ! cat /proc/mounts | grep -q ${WORD_TO_GREP_IN_PROCMOUNT} && [ "${NUM_RETRY}" != 0 ] ; do
 		NUM_RETRY=$(( $NUM_RETRY - 1 ))
 		#echo -n "."
@@ -54,6 +53,7 @@ case "$1" in
 start)
 	check_configfs_module
 	check_configfs_mounted
+	mkdir -p /etc/rtslib-fb-target
 	log_daemon_msg "Loading $DESC" "$NAME"
 	${DAEMON} restore
 	if [ $? -gt 0 ] ; then
