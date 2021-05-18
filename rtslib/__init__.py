@@ -16,13 +16,14 @@ License for the specific language governing permissions and limitations
 under the License.
 '''
 
-if __name__ == "rtslib":
+if __name__ == "rtslib-fb":
     from warnings import warn
     warn("'rtslib' package name for rtslib-fb is deprecated, please"
          + " instead import 'rtslib_fb'", UserWarning, stacklevel=2)
 
 from .root import RTSRoot
 from .utils import RTSLibError, RTSLibBrokenLink, RTSLibNotInCFS
+from .utils import RTSLibALUANotSupported
 
 from .target import LUN, MappedLUN
 from .target import NodeACL, NetworkPortal, TPG, Target
@@ -33,8 +34,10 @@ from .tcm import FileIOStorageObject, BlockStorageObject
 from .tcm import PSCSIStorageObject, RDMCPStorageObject, UserBackedStorageObject
 from .tcm import StorageObjectFactory
 
-__version__ = 'GIT_VERSION'
+from .alua import ALUATargetPortGroup
+
+__version__ = '2.1.71'
 __author__ = "Jerome Martin <jxm@risingtidesystems.com>"
-__url__ = "http://www.risingtidesystems.com"
-__description__ = "API for RisingTide Systems generic SCSI target."
-__license__ = __doc__
+__url__ = 'http://github.com/open-iscsi/rtslib-fb'
+__description__ = 'API for Linux kernel SCSI target (aka LIO)'
+__license__ = 'Apache 2.0'

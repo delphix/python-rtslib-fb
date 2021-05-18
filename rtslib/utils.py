@@ -27,9 +27,19 @@ import subprocess
 import uuid
 from contextlib import contextmanager
 
+import pyudev
+
+_CONTEXT = pyudev.Context()
+
 class RTSLibError(Exception):
     '''
     Generic rtslib error.
+    '''
+    pass
+
+class RTSLibALUANotSupported(RTSLibError):
+    '''
+    Backend does not support ALUA.
     '''
     pass
 
@@ -111,21 +121,39 @@ def is_dev_in_use(path):
         os.close(file_fd)
         return False
 
+def _get_size_for_dev(device):
+    '''
+    @param device: the device
+    @type device: pyudev.Device
+    @return: the size in logical blocks, 0 if none found
+    @rtype: int
+    '''
+    attributes = device.attributes
+    try:
+        sect_size = attributes.asint('size')
+    except (KeyError, UnicodeDecodeError, ValueError):
+        return 0
+
+    if device['DEVTYPE'] == 'partition':
+        attributes = device.parent.attributes
+
+    try:
+        logical_block_size = attributes.asint('queue/logical_block_size')
+    except (KeyError, UnicodeDecodeError, ValueError):
+        return 0
+
+    return (sect_size * 512) // logical_block_size
+
 def get_size_for_blk_dev(path):
     '''
     @param path: The path to a block device
     @type path: string
     @return: The size in logical blocks of the device
+    @raises: DeviceNotFoundError if corresponding device not found
+    @raises: EnvironmentError, ValueError in some situations
     '''
-    rdev = os.lstat(path).st_rdev
-    maj, min = os.major(rdev), os.minor(rdev)
-
-    for line in list(open("/proc/partitions"))[2:]:
-        xmaj, xmin, size, name = line.split()
-        if (maj, min) == (int(xmaj), int(xmin)):
-            return get_size_for_disk_name(name)
-    else:
-        return 0
+    device = pyudev.Device.from_device_file(_CONTEXT, os.path.realpath(str(path)))
+    return _get_size_for_dev(device)
 
 get_block_size = get_size_for_blk_dev
 
@@ -134,32 +162,35 @@ def get_size_for_disk_name(name):
     @param name: a kernel disk name, as found in /proc/partitions
     @type name: string
     @return: The size in logical blocks of a disk-type block device.
+    @raises: DeviceNotFoundError
     '''
 
     # size is in 512-byte sectors, we want to return number of logical blocks
-    def get_size(path, is_partition=False):
-        sect_size = int(fread("%s/size" % path))
-        if is_partition:
-            path = os.path.split(path)[0]
-        logical_block_size = int(fread("%s/queue/logical_block_size" % path))
-        return sect_size / (logical_block_size / 512)
+    def get_size(name):
+        """
+        :param str name: name of block device
+        :raises DeviceNotFoundError: if device not found
+        """
+        device = pyudev.Device.from_name(_CONTEXT, 'block', name)
+        return _get_size_for_dev(device)
 
     # Disk names can include '/' (e.g. 'cciss/c0d0') but these are changed to
     # '!' when listed in /sys/block.
+    # in pyudev 0.19 it should no longer be necessary to swap '/'s in name
     name = name.replace("/", "!")
 
     try:
-        return get_size("/sys/block/%s" % name)
-    except IOError:
+        return get_size(name)
+    except pyudev.DeviceNotFoundError:
         # Maybe it's a partition?
-        m = re.search(r'^([a-z0-9_\-!]+)(\d+)$', name)
+        m = re.search(r'^([a-z0-9_\-!]+?)(\d+)$', name)
         if m:
             # If disk name ends with a digit, Linux sticks a 'p' between it and
             # the partition number in the blockdev name.
             disk = m.groups()[0]
             if disk[-1] == 'p' and disk[-2].isdigit():
                 disk = disk[:-1]
-            return get_size("/sys/block/%s/%s" % (disk, m.group()), True)
+            return get_size(m.group())
         else:
             raise
 
@@ -183,22 +214,21 @@ def get_blockdev_type(path):
     @type path: string
     @return: An int for the block device type, or None if not a block device.
     '''
-    dev = os.path.realpath(path)
-
-    # is dev a block device?
     try:
-        mode = os.stat(dev)
-    except OSError:
+        device = pyudev.Device.from_device_file(_CONTEXT, path)
+    except (pyudev.DeviceNotFoundError, EnvironmentError, ValueError):
         return None
 
-    if not stat.S_ISBLK(mode[stat.ST_MODE]):
+    if device.subsystem != u'block':
         return None
 
-    # assume disk if device/type is missing
+    attributes = device.attributes
+
     disk_type = 0
-    with ignored(IOError):
-        disk_type = int(fread("/sys/block/%s/device/type" % os.path.basename(dev)))
-
+    try:
+        disk_type = attributes.asint('device/type')
+    except (KeyError, UnicodeDecodeError, ValueError):
+        pass
     return disk_type
 
 get_block_type = get_blockdev_type
@@ -225,17 +255,15 @@ def convert_scsi_path_to_hctl(path):
     @param path: The udev path to the SCSI block device.
     @type path: string
     @return: An (host, controller, target, lun) tuple of integer
-    values representing the SCSI ID of the device, or None if no
-    match is found.
+    values representing the SCSI ID of the device, or raise RTSLibError.
     '''
-    devname = os.path.basename(os.path.realpath(path))
     try:
-        hctl = os.listdir("/sys/block/%s/device/scsi_device"
-                          % devname)[0].split(':')
+        path = os.path.realpath(path)
+        device = pyudev.Device.from_device_file(_CONTEXT, path)
+        parent = device.find_parent(subsystem='scsi')
+        return [int(data) for data in parent.sys_name.split(':')]
     except:
-        return None
-
-    return [int(data) for data in hctl]
+        raise RTSLibError("Could not convert scsi path to hctl")
 
 def convert_scsi_hctl_to_path(host, controller, target, lun):
     '''
@@ -258,7 +286,7 @@ def convert_scsi_hctl_to_path(host, controller, target, lun):
     @type target: int
     @param lun: The SCSI Logical Unit Number.
     @type lun: int
-    @return: A string for the canonical path to the device, or empty string.
+    @return: A string for the canonical path to the device, or raise RTSLibError.
     '''
     try:
         host = int(host)
@@ -269,12 +297,21 @@ def convert_scsi_hctl_to_path(host, controller, target, lun):
         raise RTSLibError(
             "The host, controller, target and lun parameter must be integers")
 
-    for devname in os.listdir("/sys/block"):
-        path = "/dev/%s" % devname
-        hctl = [host, controller, target, lun]
-        if convert_scsi_path_to_hctl(path) == hctl:
-            return os.path.realpath(path)
-    return ''
+    hctl = [str(host), str(controller), str(target), str(lun)]
+    try:
+        scsi_device = pyudev.Device.from_name(_CONTEXT, 'scsi', ':'.join(hctl))
+    except pyudev.DeviceNotFoundError:
+        raise RTSLibError("Could not find path for SCSI hctl")
+
+    devices = _CONTEXT.list_devices(
+       subsystem='block',
+       parent=scsi_device
+    )
+
+    path = next((dev.device_node for dev in devices), '')
+    if path == None:
+        raise RTSLibError("Could not find path for SCSI hctl")
+    return path
 
 def generate_wwn(wwn_type):
     '''
@@ -292,7 +329,7 @@ def generate_wwn(wwn_type):
     if wwn_type == 'unit_serial':
         return str(uuid.uuid4())
     elif wwn_type == 'iqn':
-        localname = socket.gethostname().split(".")[0]
+        localname = socket.gethostname().split(".")[0].replace("_", "")
         localarch = os.uname()[4].replace("_", "")
         prefix = "iqn.2003-01.org.linux-iscsi.%s.%s" % (localname, localarch)
         prefix = prefix.strip().lower()
@@ -344,12 +381,12 @@ def normalize_wwn(wwn_types, wwn):
     wwn_test = {
     'free': lambda wwn: True,
     'iqn': lambda wwn: \
-        re.match("iqn\.[0-9]{4}-[0-1][0-9]\..*\..*", wwn) \
+        re.match(r"iqn\.[0-9]{4}-[0-1][0-9]\..*\..*", wwn) \
         and not re.search(' ', wwn) \
         and not re.search('_', wwn),
-    'naa': lambda wwn: re.match("naa\.[125][0-9a-fA-F]{15}$", wwn),
-    'eui': lambda wwn: re.match("eui\.[0-9a-f]{16}$", wwn),
-    'ib': lambda wwn: re.match("ib\.[0-9a-f]{32}$", wwn),
+    'naa': lambda wwn: re.match(r"naa\.[125][0-9a-fA-F]{15}$", wwn),
+    'eui': lambda wwn: re.match(r"eui\.[0-9a-f]{16}$", wwn),
+    'ib': lambda wwn: re.match(r"ib\.[0-9a-f]{32}$", wwn),
     'unit_serial': lambda wwn: \
         re.match("[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}$", wwn),
     }
@@ -382,7 +419,6 @@ def modprobe(module):
 
     try:
         import kmod
-        kmod.Kmod().modprobe(module)
     except ImportError:
         process = subprocess.Popen(("modprobe", module),
                                    stdout=subprocess.PIPE,
@@ -390,6 +426,12 @@ def modprobe(module):
         (stdoutdata, stderrdata) = process.communicate()
         if process.returncode != 0:
             raise RTSLibError(stderrdata)
+        return
+
+    try:
+        kmod.Kmod().modprobe(module)
+    except kmod.error.KmodError:
+        raise RTSLibError("Could not load module: %s" % module)
 
 def mount_configfs():
     if not os.path.ismount("/sys/kernel/config"):
@@ -398,7 +440,8 @@ def mount_configfs():
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
         (stdoutdata, stderrdata) = process.communicate()
-        if process.returncode != 0:
+        if process.returncode != 0 and not os.path.ismount(
+            "/sys/kernel/config"):
             raise RTSLibError("Cannot mount configfs")
 
 def dict_remove(d, items):
@@ -446,7 +489,9 @@ def _set_auth_attr(self, value, attribute, ignore=False):
     path = "%s/%s" % (self.path, attribute)
     value = value.strip()
     if value == "NULL":
-        raise ValueError("'NULL' is not a permitted value")
+        raise RTSLibError("'NULL' is not a permitted value")
+    if len(value) > 255:
+        raise RTSLibError("Value longer than maximum length of 255")
     if value == '':
         value = "NULL"
     try:

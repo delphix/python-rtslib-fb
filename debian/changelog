@@ -1,5 +1,115 @@
+python-rtslib-fb (2.1.71-0ubuntu1) focal; urgency=medium
+
+  * New upstream release.
+
+ -- James Page <james.page@ubuntu.com>  Tue, 25 Feb 2020 13:36:13 +0000
+
+python-rtslib-fb (2.1.69-3) unstable; urgency=medium
+
+  [ Ondřej Nový ]
+  * Run wrap-and-sort -bastk.
+
+  [ Thomas Goirand ]
+  * Uploading to unstable.
+
+ -- Thomas Goirand <zigo@debian.org>  Mon, 21 Oct 2019 10:22:07 +0200
+
+python-rtslib-fb (2.1.69-2) experimental; urgency=medium
+
+  * Create /etc/rtslib-fb-target in the startup.
+
+ -- Thomas Goirand <zigo@debian.org>  Mon, 30 Sep 2019 15:46:05 +0200
+
+python-rtslib-fb (2.1.69-1) experimental; urgency=medium
+
+  * New upstream release (Closes: #933929).
+  * Refershed fix-path-of-etc-saveconfig.json.patch.
+
+ -- Thomas Goirand <zigo@debian.org>  Sat, 21 Sep 2019 18:34:11 +0200
+
+python-rtslib-fb (2.1.66-4) unstable; urgency=medium
+
+  [ Ondřej Nový ]
+  * Use debhelper-compat instead of debian/compat.
+
+  [ Thomas Goirand ]
+  * Remove all of /etc/rtslib-fb-target on purge (Closes: #909920).
+  * Removed Python 2 support (Closes: #938149).
+  * Move the init script to python3-rtslib-fb, and add Breaks+Replaces.
+  * Increased timeout for /proc/mouts to 50 seconds (from 5 seconds), which
+    should fix in most situations (Closes: #858533).
+
+ -- Thomas Goirand <zigo@debian.org>  Sat, 14 Sep 2019 19:06:29 +0200
+
+python-rtslib-fb (2.1.66-3.2) unstable; urgency=medium
+
+  * Replace previous NMU with a new source-only upload.
+
+ -- Kenneth J. Pronovici <pronovic@debian.org>  Thu, 08 Aug 2019 02:29:11 +0000
+
+python-rtslib-fb (2.1.66-3.1) unstable; urgency=medium
+
+  * Non-maintainer upload
+  * Eliminate dependency on epydoc, which will be removed (closes: #881558)
+    - Update debian/rules to no longer build epydoc documentation
+    - Update debian/control to remove Build-Depends: python-epydoc
+    - Update debian/control to remove now-empty python-rtslib-fb-doc package
+    - Update debian/control to remove Suggests: python-rtslib-fb-doc
+    - Remove debian/python-rtslib-fb-doc.doc-base
+
+ -- Kenneth J. Pronovici <pronovic@debian.org>  Fri, 02 Aug 2019 17:36:44 +0000
+
+python-rtslib-fb (2.1.66-3) unstable; urgency=medium
+
+  * Add python3-rtslib-fb.rtslib-fb-targetctl.service (Closes: #926943).
+  * Move init script from python-rtslib-fb to python3-rtslib-fb and add a
+    Recommends: in the python-rtslib-fb (and Breaks+Replaces to allow the
+    upgrades).
+
+ -- Thomas Goirand <zigo@debian.org>  Tue, 16 Apr 2019 21:33:35 +0200
+
+python-rtslib-fb (2.1.66-2) unstable; urgency=medium
+
+  * Uploading to unstable (Closes: #903500).
+  * Added python{3,}-pyudev runtime depends.
+  * Fixed patch for change of /etc/rtslib-fb-target.
+  * Fixed URL in watch file to use new upstream VCS.
+  * Fixed Homepage: field and debian/copyright URLs as well.
+
+ -- Thomas Goirand <zigo@debian.org>  Fri, 24 Aug 2018 12:33:06 +0200
+
+python-rtslib-fb (2.1.66-1) experimental; urgency=medium
+
+  [ Thomas Goirand ]
+  * Fixed upstream VCS URL in debian/rules.
+  * New upstream release.
+  * Refreshed fix-path-of-etc-saveconfig.json.patch.
+
+  [ Daniel Baumann ]
+  * Updating vcs fields.
+  * Updating copyright format url.
+  * Updating maintainer field.
+  * Running wrap-and-sort -bast.
+  * Removing gbp.conf, not used anymore or should be specified in the
+    developers dotfiles.
+  * Correcting permissions in debian packaging files.
+  * Updating standards version to 4.1.0.
+
+  [ Ondřej Nový ]
+  * d/control: Set Vcs-* to salsa.debian.org
+  * d/control: Use team+openstack@tracker.debian.org as maintainer
+
+  [ David Rabel ]
+  * d/watch: Fix d/watch.
+  * d/copyright: Fix paragraph order.
+  * d/control: Add dependency on lsb-base.
+  * d/control: Delete dependency of python3 package on python2.x package.
+
+ -- David Rabel <david.rabel@noresoft.com>  Fri, 11 May 2018 22:59:07 +0200
+
 python-rtslib-fb (2.1.57+debian-4) unstable; urgency=medium
 
+  * Team upload.
   * Fixed VCS URLs (https).
   * d/rules: Changed UPSTREAM_GIT protocol to https
   * d/copyright: Changed source URL to https protocol
