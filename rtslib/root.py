@@ -166,6 +166,21 @@ class RTSRoot(CFSNode):
             self._dbroot = self._default_dbroot
             return
         self._dbroot = fread(dbroot_path)
+
+        #
+        # Delphix: previous persistent reservation data would have been stored
+        # under /var/target (_default_dbroot). If we want to change the location
+        # of the pr data we would first need to migrate the existing data,
+        # which we have not currently implemented.
+        #
+        # By default the kernel will try to use /etc/target if it exists,
+        # and if not it will go to /var/target (which is our case). We add a
+        # check here to ensure that the kernel indeed points to /var/target.
+        # If that is not the case we would catch this failure in our testing.
+        #
+        assert self._dbroot == self._default_dbroot
+        return
+
         if self._dbroot != self._preferred_dbroot:
             if len(FabricModule.list_registered_drivers()) is not 0:
                 # Writing to dbroot_path after drivers have been registered will make the kernel emit this error:
