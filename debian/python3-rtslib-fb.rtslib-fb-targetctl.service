@@ -2,6 +2,7 @@
 Description=Restore LIO kernel target configuration
 Requires=sys-kernel-config.mount
 After=sys-kernel-config.mount network.target local-fs.target
+ConditionVirtualization=!container
 
 [Service]
 Type=oneshot
