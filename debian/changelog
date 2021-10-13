@@ -1,3 +1,11 @@
+python-rtslib-fb (2.1.71-0ubuntu1.1) focal; urgency=medium
+
+  * d/python3-rtslib-fb.rtslib-fb-targetctl.service: Add check
+    to skip starting this service when running in a container.
+    (LP: #1865037)
+
+ -- Utkarsh Gupta <utkarsh.gupta@canonical.com>  Fri, 25 Jun 2021 18:31:16 +0530
+
 python-rtslib-fb (2.1.71-0ubuntu1) focal; urgency=medium
 
   * New upstream release.
