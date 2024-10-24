@@ -1,0 +1,18 @@
+Description: Disable xen-pvscsi due to unsupported xen_scsiback module
+
+Author: Rafael David Tinoco <rafaeldtinoco@ubuntu.com>
+Bug-Ubuntu: https://launchpad.net/bugs/1891214
+Forwarded: not-needed
+Last-Update: 2020-09-08
+
+--- python-rtslib-fb-2.1.73.orig/rtslib/fabric.py
++++ python-rtslib-fb-2.1.73/rtslib/fabric.py
+@@ -469,7 +469,7 @@ fabric_modules = {
+     "tcm_fc": FCoEFabricModule,
+ #    "usb_gadget": USBGadgetFabricModule, # very rare, don't show
+     "vhost": VhostFabricModule,
+-    "xen-pvscsi": XenPvScsiFabricModule,
++#    "xen-pvscsi": XenPvScsiFabricModule,
+     "ibmvscsis": IbmvscsisFabricModule,
+     }
+ 
