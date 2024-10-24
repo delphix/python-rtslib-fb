@@ -1,0 +1,15 @@
+Description: Use python3 as interpreter by default
+Author: Rafael David Tinoco <rafaeldtinoco@ubuntu.com>
+Last-Update: 2020-06-26
+---
+ scripts/targetctl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/scripts/targetctl
++++ b/scripts/targetctl
+@@ -1,4 +1,4 @@
+-#!/usr/bin/python
++#!/usr/bin/python3
+ '''
+ targetctl
+ 
