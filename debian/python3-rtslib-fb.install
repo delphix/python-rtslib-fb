@@ -1,0 +1,5 @@
+scripts/convert-to-json                     /usr/bin
+scripts/targetctl                           /usr/bin
+usr/lib/python3*/dist-packages/rtslib       /usr/lib/python3/dist-packages
+usr/lib/python3*/dist-packages/rtslib_fb    /usr/lib/python3/dist-packages
+systemd/target.service                      /lib/systemd/system

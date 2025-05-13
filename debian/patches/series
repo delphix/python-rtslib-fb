@@ -1,1 +1,4 @@
 fix-path-of-etc-saveconfig.json.patch
+fix-interpreter-version.patch
+lp1891214-disable-xen-pvscsi.patch
+handle-target-kernel-module-new-attribute-cpus_allow.patch

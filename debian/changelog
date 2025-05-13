@@ -1,10 +1,112 @@
-python-rtslib-fb (2.1.71-0ubuntu1.1) focal; urgency=medium
+python-rtslib-fb (2.1.74-0ubuntu5) kinetic; urgency=medium
 
-  * d/python3-rtslib-fb.rtslib-fb-targetctl.service: Add check
-    to skip starting this service when running in a container.
-    (LP: #1865037)
+  * d/p/handle-target-kernel-module-new-attribute-cpus_allow.patch:
+    Handle new Linux kernel module attribute "cpus_allowed_list".
+    (LP: #1988366)
 
- -- Utkarsh Gupta <utkarsh.gupta@canonical.com>  Fri, 25 Jun 2021 18:31:16 +0530
+ -- Sergio Durigan Junior <sergio.durigan@canonical.com>  Wed, 31 Aug 2022 22:41:11 -0400
+
+python-rtslib-fb (2.1.74-0ubuntu4) jammy; urgency=medium
+
+  * No-change rebuild to update maintainer scripts, see LP: 1959054
+
+ -- Dave Jones <dave.jones@canonical.com>  Wed, 16 Feb 2022 17:27:17 +0000
+
+python-rtslib-fb (2.1.74-0ubuntu3) hirsute; urgency=medium
+
+  *  d/python3-rtslib-fb.rtslib-fb-targetctl.service: Add check to skip
+     starting this service when running in a container (LP: #1865037).
+
+ -- Chris MacNaughton <chris.macnaughton@ubuntu.com>  Fri, 05 Mar 2021 16:26:14 +0000
+
+python-rtslib-fb (2.1.74-0ubuntu2) hirsute; urgency=medium
+
+  * Fix service fail on install due to name mismatch and lost mkdir (LP: #1916715)
+    - d/python3-rtslib-fb.rtslib-fb-targetctl.service: add back debianized
+      systemd service file
+    - d/rules: install rtslib-fb-targetctl.service as it was in Focal
+
+ -- Christian Ehrhardt <christian.ehrhardt@canonical.com>  Wed, 24 Feb 2021 09:32:35 +0100
+
+python-rtslib-fb (2.1.74-0ubuntu1) hirsute; urgency=medium
+
+  * New upstream release.  Remaining changes:
+    - d/p/fix-path-of-etc-saveconfig.json.patch: Refresh patch.
+    - d/p/lp1891214-disable-xen-pvscsi.patch: Disable xen-pvscsi due
+      to unsup xen_scsiback module (LP #1891214)
+    - Adjust rules for build, install, man, docs, init and systemd:
+      + Use the pybuild build system.
+      + Add override_installman to install manpages.
+      + Add override_dh_installdocs to install the .md documentation
+        files shipped by the project.
+      + Simplify override_dh_installinit.
+      + Add override_dh_installsystemd to install the systemd unit file.
+    - d/p/fix-interpreter-version.patch: Set interpreter version to
+      Python 3.
+  * Dropped changes:
+    - d/p/CVE-2020-14019.patch: keep proper umask when calling
+      shutil.copy() in rtslib/root.py.
+      [Incorporated by upstream]
+  * Added changes:
+    - d/python3-rtslib-fb.install: Use wildcard to match any Python
+      version when installing the files.
+    - Reenable testsuite run (LP: #1890243)
+      + d/control: B-D on python3-pyudev.
+      + d/rules: Don't disable tests.
+
+ -- Sergio Durigan Junior <sergio.durigan@canonical.com>  Fri, 29 Jan 2021 15:34:36 -0500
+
+python-rtslib-fb (2.1.73-1ubuntu4) groovy; urgency=medium
+
+  * Disable xen-pvscsi due to unsup xen_scsiback module (LP: #1891214)
+
+ -- Rafael David Tinoco <rafaeldtinoco@ubuntu.com>  Tue, 08 Sep 2020 17:11:00 +0000
+
+python-rtslib-fb (2.1.73-1ubuntu3) groovy; urgency=medium
+
+  * SECURITY UPDATE: insecure saveconfig.json permissions
+    - debian/patches/CVE-2020-14019.patch: keep proper umask when calling
+      shutil.copy() in rtslib/root.py.
+    - CVE-2020-14019
+
+ -- Marc Deslauriers <marc.deslauriers@ubuntu.com>  Tue, 18 Aug 2020 10:25:05 -0400
+
+python-rtslib-fb (2.1.73-1ubuntu2) groovy; urgency=medium
+
+  * Fix FTBFS for python3 (LP #1890243)
+
+ -- Rafael David Tinoco <rafaeldtinoco@ubuntu.com>  Tue, 04 Aug 2020 07:13:51 +0000
+
+python-rtslib-fb (2.1.73-1ubuntu1) groovy; urgency=medium
+
+  * New upstream version.
+
+ -- Rafael David Tinoco <rafaeldtinoco@ubuntu.com>  Tue, 04 Aug 2020 05:25:13 +0000
+
+python-rtslib-fb (2.1.73-1) unstable; urgency=medium
+
+  * Non-maintainer upload.
+  * New upstream version 2.1.73
+  * Update d/p/fix-path-of-etc-saveconfig.json.patch
+  * Adjust rules for build, install, man, docs, init and systemd
+  * Fix interpreter version: d/p/fix-interpreter-version.patch
+
+ -- Rafael David Tinoco <rafaeldtinoco@ubuntu.com>  Sat, 27 Jun 2020 02:46:27 +0000
+
+python-rtslib-fb (2.1.71-2) unstable; urgency=medium
+
+  * Uploading to unstable.
+
+ -- Thomas Goirand <zigo@debian.org>  Fri, 08 May 2020 11:39:20 +0200
+
+python-rtslib-fb (2.1.71-1) experimental; urgency=medium
+
+  * New upstream release.
+  * Refreshed fix-path-of-etc-saveconfig.json.patch.
+  * Using debhelper-compat = 11.
+  * Standards-Version: 4.5.0.
+
+ -- Thomas Goirand <zigo@debian.org>  Mon, 30 Mar 2020 10:58:30 +0200
 
 python-rtslib-fb (2.1.71-0ubuntu1) focal; urgency=medium
 
