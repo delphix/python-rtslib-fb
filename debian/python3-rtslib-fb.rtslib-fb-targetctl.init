@@ -53,7 +53,6 @@ case "$1" in
 start)
 	check_configfs_module
 	check_configfs_mounted
-	mkdir -p /etc/rtslib-fb-target
 	log_daemon_msg "Loading $DESC" "$NAME"
 	${DAEMON} restore
 	if [ $? -gt 0 ] ; then

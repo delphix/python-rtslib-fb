@@ -3,22 +3,66 @@ Description: Fix path for the /etc/target/saveconfig.json
  this to /etc/rtslib-fb-target/saveconfig.json
 Author: Thomas Goirand <zigo@debian.org>
 Forwarded: no
-Last-Update: 2014-01-25
+Reviewed-by: Rafael David Tinoco <rafaeldtinoco@ubuntu.com>
+Last-Update: 2020-06-26
 
---- a/scripts/targetctl
-+++ b/scripts/targetctl
-@@ -28,7 +28,7 @@ from rtslib_fb import RTSRoot
- import os
- import sys
- 
--default_save_file = "/etc/target/saveconfig.json"
-+default_save_file = "/etc/rtslib-fb-target/saveconfig.json"
- err = sys.stderr
- 
- def usage():
---- a/rtslib/root.py
-+++ b/rtslib/root.py
-@@ -34,7 +34,7 @@ from .utils import dict_remove, set_attr
+---
+ doc/saveconfig.json.5   | 4 ++--
+ doc/targetctl.8         | 4 ++--
+ rtslib/root.py          | 8 ++++----
+ scripts/convert-to-json | 2 +-
+ scripts/targetctl       | 2 +-
+ 5 files changed, 10 insertions(+), 10 deletions(-)
+
+Index: python-rtslib-fb/doc/saveconfig.json.5
+===================================================================
+--- python-rtslib-fb.orig/doc/saveconfig.json.5	2021-01-29 10:39:37.243019916 -0500
++++ python-rtslib-fb/doc/saveconfig.json.5	2021-01-29 10:39:37.239019953 -0500
+@@ -3,7 +3,7 @@
+ .B saveconfig.json
+ \- Saved configuration file for rtslib-fb and LIO kernel target
+ .SH DESCRIPTION
+-.B /etc/target/saveconfig.json
++.B /etc/rtslib-fb-target/saveconfig.json
+ is the default location for storing the configuration of the Linux
+ kernel target, also known as LIO. Since the target is in the kernel, tools like
+ .B targetctl
+@@ -239,7 +239,7 @@
+ .BR targetcli (8),
+ .BR targetctl (8)
+ .SH FILES
+-.B /etc/target/saveconfig.json
++.B /etc/rtslib-fb-target/saveconfig.json
+ .SH AUTHOR
+ Man page written by Andy Grover <agrover@redhat.com>.
+ .SH REPORTING BUGS
+Index: python-rtslib-fb/doc/targetctl.8
+===================================================================
+--- python-rtslib-fb.orig/doc/targetctl.8	2021-01-29 10:39:37.243019916 -0500
++++ python-rtslib-fb/doc/targetctl.8	2021-01-29 10:39:37.239019953 -0500
+@@ -26,7 +26,7 @@
+ is not supplied,
+ .B targetctl
+ will use the default file location,
+-.BR /etc/target/saveconfig.json.
++.BR /etc/rtslib-fb-target/saveconfig.json.
+ .P
+ .B targetctl restore [config-file]
+ .P
+@@ -50,7 +50,7 @@
+ .BR targetd (8),
+ .BR saveconfig.json (5)
+ .SH FILES
+-.B /etc/target/saveconfig.json
++.B /etc/rtslib-fb-target/saveconfig.json
+ .P
+ .B /sys/kernel/config/target
+ .SH AUTHOR
+Index: python-rtslib-fb/rtslib/root.py
+===================================================================
+--- python-rtslib-fb.orig/rtslib/root.py	2021-01-29 10:39:37.243019916 -0500
++++ python-rtslib-fb/rtslib/root.py	2021-01-29 10:39:37.239019953 -0500
+@@ -34,7 +34,7 @@
  from .utils import fread, fwrite
  from .alua import ALUATargetPortGroup
  
@@ -27,7 +71,7 @@ Last-Update: 2014-01-25
  
  class RTSRoot(CFSNode):
      '''
-@@ -65,7 +65,7 @@ class RTSRoot(CFSNode):
+@@ -65,7 +65,7 @@
      # this should match the kernel target driver default db dir
      _default_dbroot = "/var/target"
      # this is where the target DB is to be located (instead of the default)
@@ -36,21 +80,47 @@ Last-Update: 2014-01-25
  
      def __init__(self):
          '''
-@@ -441,7 +441,7 @@ class RTSRoot(CFSNode):
+@@ -449,7 +449,7 @@
      def save_to_file(self, save_file=None, so_path=None):
          '''
          Write the configuration in json format to a file.
--        Save file defaults to '/etc/targets/saveconfig.json'.
-+        Save file defaults to '/etc/rtslib-fb-targets/saveconfig.json'.
+-        Save file defaults to '/etc/target/saveconfig.json'.
++        Save file defaults to '/etc/rtslib-fb-target/saveconfig.json'.
          '''
          if not save_file:
              save_file = default_save_file
-@@ -469,7 +469,7 @@ class RTSRoot(CFSNode):
+@@ -496,7 +496,7 @@
                            abort_on_error=False):
          '''
          Restore the configuration from a file in json format.
--        Restore file defaults to '/etc/targets/saveconfig.json'.
-+        Restore file defaults to '/etc/rtslib-fb-targets/saveconfig.json'.
+-        Restore file defaults to '/etc/target/saveconfig.json'.
++        Restore file defaults to '/etc/rtslib-fb-target/saveconfig.json'.
          Returns a list of non-fatal errors. If abort_on_error is set,
            it will raise the exception instead of continuing.
          '''
+Index: python-rtslib-fb/scripts/convert-to-json
+===================================================================
+--- python-rtslib-fb.orig/scripts/convert-to-json	2021-01-29 10:39:37.243019916 -0500
++++ python-rtslib-fb/scripts/convert-to-json	2021-01-29 10:39:37.239019953 -0500
+@@ -316,7 +316,7 @@
+         elif txt[cur] == "fabric":
+             cur = parse_fabric(txt, cur)
+ 
+-with open("/etc/target/scsi_target.lio") as f:
++with open("/etc/rtslib-fb-target/scsi_target.lio") as f:
+     txt = f.read()
+     txt = split(txt)
+     cur = parse(txt, 0)
+Index: python-rtslib-fb/scripts/targetctl
+===================================================================
+--- python-rtslib-fb.orig/scripts/targetctl	2021-01-29 10:39:37.243019916 -0500
++++ python-rtslib-fb/scripts/targetctl	2021-01-29 10:39:37.239019953 -0500
+@@ -28,7 +28,7 @@
+ import os
+ import sys
+ 
+-default_save_file = "/etc/target/saveconfig.json"
++default_save_file = "/etc/rtslib-fb-target/saveconfig.json"
+ err = sys.stderr
+ 
+ def usage():
