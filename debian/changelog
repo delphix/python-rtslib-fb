@@ -1,3 +1,9 @@
+python-rtslib-fb (2.1.74-0ubuntu6) resolute; urgency=medium
+
+  * No-change mass rebuild for Ubuntu 26.04 (LP: #2132257)
+
+ -- Sebastien Bacher <seb128@ubuntu.com>  Mon, 01 Dec 2025 15:10:23 +0100
+
 python-rtslib-fb (2.1.74-0ubuntu5) kinetic; urgency=medium
 
   * d/p/handle-target-kernel-module-new-attribute-cpus_allow.patch:
